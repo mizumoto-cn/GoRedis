@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
@@ -57,9 +58,12 @@ func init() {
 func SetupLogger(config LogConfig) {
 	var err error
 	dir := config.Path
-	fileName := fmt.Sprintf("%s - %s.%s", config.Name, time.Now().Format(config.TimeFormat), config.Ext)
-	// Todo: extract open file to a unique function
+
+	// lof file name format: <name>-<time>.<ext>
+	fileName := fmt.Sprintf("%s-%s.%s", config.Name, time.Now().Format(config.TimeFormat), config.Ext)
+	// Todo: extract open file to a unique function | done
 	// logFile, err = os.OpenFile(filepath.Join(dir, fileName), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// With checking permission
 	logFile, err = fileopt.SafeOpen(fileName, dir)
 	if err != nil {
 		log.Fatal("logger setup failed: ", err)
@@ -69,4 +73,60 @@ func SetupLogger(config LogConfig) {
 	// to write to both stdout and the log file
 	logger = log.New(io.MultiWriter(os.Stdout, logFile),
 		defaultPrefix, flags)
+}
+
+func prefix(level LogLevel) {
+	// runtime.Caller is used to get the caller function stack info
+	// Caller reports file and line number information about function invocations
+	// on the calling goroutine's stack
+	_, file, line, ok := runtime.Caller(defaultCallerDepth)
+	if ok {
+		logPrefix = fmt.Sprintf("[%s][%s:%d]", levelFlags[level], file, line)
+	} else {
+		logPrefix = fmt.Sprintf("[%s]", levelFlags[level])
+	}
+	// SetPrefix sets the prefix of the log
+	// func (l *Logger)SetPrefix(prefix string)
+	logger.SetPrefix(logPrefix)
+}
+
+// Debug log
+func Debug(v ...interface{}) {
+	mu.Lock()
+	defer mu.Unlock()
+	prefix(DEBUG)
+	logger.Println(v...)
+}
+
+// Info log
+func Info(v ...interface{}) {
+	mu.Lock()
+	defer mu.Unlock()
+	prefix(INFO)
+	logger.Println(v...)
+}
+
+// Warn log for warning logs
+func Warn(v ...interface{}) {
+	mu.Lock()
+	defer mu.Unlock()
+	prefix(WARN)
+	logger.Println(v...)
+}
+
+// Error log
+func Error(v ...interface{}) {
+	mu.Lock()
+	defer mu.Unlock()
+	prefix(ERROR)
+	logger.Println(v...)
+}
+
+// Fatal log
+func Fatal(v ...interface{}) {
+	mu.Lock()
+	defer mu.Unlock()
+	prefix(FATAL)
+	logger.Println(v...)
+	os.Exit(1)
 }

@@ -4,6 +4,7 @@
         "llen",
         "nemuinya",
         "neumi",
-        "scard"
+        "scard",
+        "wrappedwait"
     ]
 }

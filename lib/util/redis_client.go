@@ -1,3 +1,6 @@
+///
+/// *** This file may be removed due to future architecture changes. ***
+///
 package util
 
 import (
