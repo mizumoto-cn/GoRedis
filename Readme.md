@@ -2,10 +2,12 @@
 
 GoRedis is supposed to be a project made up of two parts:
 
-- a high performance, stable, and light-weight Redis server
+- a high-performance, stable, and light-weight Redis server
 - a fast, high-performance, and easy-to-use Go client library
 
 ## Quick Start
+
+<!-- markdownlint-disable MD010 -->
 
 ```bash
 	________      __________           .___.__        
@@ -62,9 +64,9 @@ Binary-safe means that the protocol is not text-based, you can put any character
 There are five types of messages in RESP:
 
 - Simple Strings (S) Not binary safe, CRLF not allowed.
-- Error (E) Simple error message. Not binary safe. CRLF not allowed.
+- Error (E) Simple error message. Not binary safe. CRLFs are not allowed.
 - Integers (I) uint64, as return values from commands like llen, scard, etc.
-- Bulk Strings (B) Binary safe string. Used as return values from commands like get, set, etc.
+- Bulk Strings (B) Binary safe string. Used as return values from commands like `get`, `set`, etc.
 - Arrays (A) (Also called Multi-Bulk-Strings) A list of bulk strings.
 
 The RESP protocol uses the first character to indicate the type of the message.
@@ -77,7 +79,7 @@ The RESP protocol uses the first character to indicate the type of the message.
 
 ### Bulk Strings
 
-Bulk string is combination of `$` + length and a string as the value.
+A Bulk string is a combination of `$` + length and a string as the value.
 
 For example, the following RESP message:
 
@@ -109,9 +111,11 @@ And also, the client can send an array of strings to the server:
 
 ### Unmarshal
 
-Notice that the RESP protocol is binary-safe, it allows you to send data like this: `*3\r\n$3\r\nSET\r\n$4\r\na\vr\nb\r\n$5hello\r\n`.
+Notice that the RESP protocol is binary-safe, it allows you to send data like this: `*3\r\n$3\r\nSET\r\n$4\r\na\r\nb\r\n$5hello\r\n`.
 
-So you cannot simply use `ReadBytes('\n')` to read the next line, you shall use `io.Readfull(reader, msg)` to read  a given number of bytes.
+So you cannot simply use `ReadBytes('\n')` to read the next line, as you may accidentally separate the `a\r\nb` string into two lines.
+
+You shall instead use `io.Readfull(reader, msg)` to read a given length slice of bytes. For example:
 
 ```golang
 msg := make([]byte, 6) // abcd/r/n
@@ -120,18 +124,22 @@ _, err := io.ReadFull(reader, msg)
 
 So we can build a parser like this:
 
-<!-- markdownlint-disable MD010 -->
-
 ```golang
+// Stores Reply or error
 type Payload struct{
 	Data redis.Reply
 	Err error
 }
 
+// read through io.Reader and unmarshal into Payload through channel
 func ParseStream ( reader io.Reader) <-chan *Payload {
 	ch := make(chan Payload)
-	go func() {
-		readingMultiLine := false
+	go parseStream(reader, ch)
+	return ch
+}
+
+func parseStream(reader io.Reader, ch chan<- *Payload) {
+readingMultiLine := false
 		expectedArgsCount := 0
 		var args [][]byte
 		var bulkLen int64
@@ -185,22 +193,23 @@ func ParseStream ( reader io.Reader) <-chan *Payload {
 			}
 		}
 	}()
-	return ch
 }
 ```
+
 ## Thread-safe HashMap
 
 GoRedis works in a multi-threaded way, so it is important to make sure that the hashmap is thread-safe.
 
-A common way to make a hashmap thread-safe is to use `sync.Map`, but `m.dirty` will duplicate the `m.read` into 
+A common way to make a hashmap thread-safe is to use `sync.Map`, but `m.dirty` will duplicate the `m.read` into the new `m.dirty` instance //?
+// To be implemented.
 
 ## Licensing and Disclaimers
 
-This project, except the 3-rd party libraries, is written by mizumoto-cn. No GPL-like licensed codes are used.
+This project, except for the 3-rd party libraries, is written by @mizumoto-cn. No GPL-like licensed codes are used.
 
-This project is licensed under the [Mizumoto General Public License version 1.2](https://github.com/mizumoto-cn/TRPcG/blob/master/License/Mizumoto%20General%20Public%20License%20v1.2.md), which is a Mozilla Public License version 2.0 based license but with following restrictions:
+This project is licensed under the [Mizumoto General Public License version 1.2](https://github.com/mizumoto-cn/TRPcG/blob/master/License/Mizumoto%20General%20Public%20License%20v1.2.md), which is a Mozilla Public License version 2.0-based license but with the following restrictions:
 
-By using any part of this project, you are deemed to have fully understanding and acceptance of the following terms：
+By using any part of this project, you are deemed to have full understanding and acceptance of the following terms：
 
 1. You must conspicuously display, without modification, this License and the notice on each redistributed or derivative copy of the License Covered Work.
 2. Any non-independent developers companies/groups/legal entities or other organizations should ensure that employees are not oppressed or exploited, and that employees can always receive a reasonable salary for their legal working hours.
