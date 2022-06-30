@@ -23,7 +23,7 @@ type Config struct {
 }
 
 // ListenAndServe handles requests, blocks until close signal is received
-func ListenAndServe(listener net.Listener, handler tcp.Handler, close <-chan struct{}) error {
+func ListenAndServe(listener net.Listener, handler tcp.Handler, close <-chan struct{}) {
 	// listen close signal
 	go func() {
 		<-close
@@ -43,13 +43,13 @@ func ListenAndServe(listener net.Listener, handler tcp.Handler, close <-chan str
 		conn, err := listener.Accept()
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
-				logs.Error("TCP request is canceled %v", err)
+				logs.Error("TCP request is canceled", err)
 				break
 			}
-			logs.Error("TCP server accept error: %v", err)
+			logs.Error("TCP server accept error", err)
 			break
 		}
-		logs.Info("TCP server accept a connection from %s", conn.RemoteAddr().String())
+		logs.Info("TCP server accept a connection from ", conn.RemoteAddr().String())
 		waitGroup.Add(1)
 		go func() {
 			defer waitGroup.Done()
@@ -74,7 +74,7 @@ func ListenAndServeWithConfig(config Config, handler tcp.Handler) error {
 	go func() {
 		signal := <-signalChan
 		switch signal {
-		case syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, SIGHUP:
+		case syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGHUP:
 			closeChan <- struct{}{}
 		}
 	}()
@@ -84,7 +84,7 @@ func ListenAndServeWithConfig(config Config, handler tcp.Handler) error {
 		return err
 	}
 
-	logs.Info("TCP server is listening on %s", config.Address)
+	logs.Info("TCP server is listening on ", config.Address)
 	ListenAndServe(listener, handler, closeChan)
 	return nil
 }
